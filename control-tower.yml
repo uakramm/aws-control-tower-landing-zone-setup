@@ -1,0 +1,500 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: Logging Account (Skip if already exists)
+        Parameters:
+          - LoggingAccountCreation
+          - LoggingAccountEmail
+          - LoggingAccountName
+      - Label: 
+          default: Security Account (Skip if already exists)
+        Parameters:
+          - SecurityAccountCreation
+          - SecurityAccountEmail
+          - SecurityAccountName
+      - Label:
+          default: Control Tower IAM Roles
+        Parameters:
+          - ControlTowerAdminIAMRoleCreation
+          - ControlTowerCloudTrailRoleCreation
+          - ControlTowerConfigAggregatorRoleCreation
+          - ControlTowerStackSetRoleCreation
+      - Label:
+          default: Landing Zone Configuration
+        Parameters:
+          - LandingZoneVersion
+          - GovernedRegions
+          - SecurityOuName
+          - SandboxOuName
+          - LoggingAccountId
+          - SecurityAccountId
+          - LoggingBucketRetentionPeriod
+          - AccessLoggingBucketRetentionPeriod
+
+    ParameterLabels:
+      LoggingAccountCreation:
+        default: Create Logging Account?
+      LoggingAccountEmail:
+        default: Email Id for Centralized Logging account
+      LoggingAccountName:
+        default: Name for Centralized Logging account
+      SecurityAccountCreation:
+        default: Create Security Account?
+      SecurityAccountEmail:
+        default: Email Id for Security Roles account
+      SecurityAccountName:
+        default: Name for Security Roles account
+      ControlTowerAdminIAMRoleCreation:
+        default: Create AWSControlTowerAdmin IAM Role?
+      ControlTowerCloudTrailRoleCreation:
+        default: Create AWSControlTowerCloudTrailRole IAM Role
+      ControlTowerConfigAggregatorRoleCreation:
+        default: Create AWSControlTowerConfigAggregatorRoleForOrganizations IAM Role?
+      ControlTowerStackSetRoleCreation:
+        default: Create AWSControlTowerStackSetRole IAM Role?
+      LandingZoneVersion:
+        default: Version Number of Landing Zone
+      GovernedRegions:
+        default: List of Governed Regions
+      SecurityOuName:
+        default: Security Organizational Unit Name
+      SandboxOuName:
+        default: Sandbox Organizational Unit Name
+      LoggingAccountId:
+        default: AWS Account ID for Existing Centralized Logging Account (Skip if creating new account)
+      SecurityAccountId:
+        default: AWS Account ID for Existing Security Roles Account (Skip if creating new account)
+      LoggingBucketRetentionPeriod:
+        default: Retention period in Days for Centralized Logging bucket
+      AccessLoggingBucketRetentionPeriod:
+        default: Retention period in Days for Access Logging bucket
+
+Parameters:
+  LoggingAccountCreation:
+    Type: String
+    Description: Set to True if you want to create a new Logging Account
+    AllowedValues:
+    - true
+    - false
+    Default: false
+  LoggingAccountEmail:
+    Type: String
+    Description: Email Address (Should not have been used for any other AWS account)
+  LoggingAccountName:
+    Type: String
+    Description: Account Name
+  SecurityAccountCreation:
+    Type: String
+    Description: Set to True if you want to create a new Security Account
+    AllowedValues:
+    - true
+    - false
+    Default: false
+  SecurityAccountEmail:
+    Type: String
+    Description: Email Address (Should not have been used for any other AWS account)
+  SecurityAccountName:
+    Type: String
+    Description: Account Name
+  ControlTowerAdminIAMRoleCreation:
+    Type: String
+    Description: Set to False if AWSControlTowerAdmin Role already exists in management account
+    AllowedValues:
+    - true
+    - false
+    Default: false
+  ControlTowerCloudTrailRoleCreation:
+    Type: String
+    Description: Set to False if AWSControlTowerCloudTrailRole Role already exists in management account
+    AllowedValues:
+    - true
+    - false
+    Default: false
+  ControlTowerConfigAggregatorRoleCreation:
+    Type: String
+    Description: Set to False if AWSControlTowerConfigAggregatorRoleForOrganizations Role already exists in management account
+    AllowedValues:
+    - true
+    - false
+    Default: false
+  ControlTowerStackSetRoleCreation:
+    Type: String
+    Description: Set to False if AWSControlTowerStackSetRole Role already exists in management account
+    AllowedValues:
+    - true
+    - false
+    Default: false
+  LandingZoneVersion:
+    Type: String
+    Description: Version Number
+    Default: "3.3"
+  GovernedRegions:
+    Type: List<String>
+    Description: Select Regions
+    AllowedValues:
+    - ap-south-1
+    - eu-north-1
+    - eu-west-3
+    - eu-west-2
+    - eu-west-1
+    - ap-northeast-3
+    - ap-northeast-2
+    - ap-northeast-1
+    - ca-central-1
+    - sa-east-1
+    - ap-southeast-1
+    - ap-southeast-2
+    - eu-central-1
+    - us-east-1
+    - us-east-2
+    - us-west-1
+    - us-west-2
+    Default: us-east-1, us-east-2, us-west-1, us-west-2
+  SecurityOuName:
+    Type: String
+    Description: Organizational Unit Name
+  SandboxOuName:
+    Type: String
+    Description: Organizational Unit Name
+  LoggingAccountId:
+    Type: String
+    Description: AWS Account ID
+    Default: ""
+  SecurityAccountId:
+    Type: String
+    Description: AWS Account ID
+    Default: ""
+  LoggingBucketRetentionPeriod:
+    Type: Number
+    Description: Retention period
+    Default: 365
+  AccessLoggingBucketRetentionPeriod:
+    Type: Number
+    Description: Retention period
+    Default: 365
+
+Rules:
+  LoggingAccountConstraint:
+    Assertions:
+      - Assert:
+          Fn::Not:
+            - Fn::And:
+                - !Equals [ !Ref LoggingAccountCreation, "false" ]
+                - !Equals [ !Ref LoggingAccountId, "" ]
+        AssertDescription: "If LoggingAccountCreation is set to false, you have to provide AWS Account ID for existing Logging Account."
+  SecurityAccountConstraint:
+    Assertions:
+      - Assert:
+          Fn::Not:
+            - Fn::And:
+              - !Equals [ !Ref SecurityAccountCreation, "false" ]
+              - !Equals [ !Ref SecurityAccountId, "" ]
+        AssertDescription: "If SecurityAccountCreation is set to false, you have to provide AWS Account ID for existing Security Account."
+
+Conditions:
+  CreateLoggingAccount: !Equals
+  - !Ref LoggingAccountCreation
+  - true
+  CreateSecurityAccount: !Equals
+  - !Ref SecurityAccountCreation
+  - true
+  CreateControlTowerAdminIAMRole: !Equals
+  - !Ref ControlTowerAdminIAMRoleCreation
+  - true
+  CreateControlTowerCloudTrailRole: !Equals
+  - !Ref ControlTowerCloudTrailRoleCreation
+  - true
+  CreateControlTowerConfigAggregatorRole: !Equals
+  - !Ref ControlTowerConfigAggregatorRoleCreation
+  - true
+  CreateControlTowerStackSetRole: !Equals
+  - !Ref ControlTowerStackSetRoleCreation
+  - true
+
+Resources:
+  GetOrganizationIdLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service:
+            - lambda.amazonaws.com
+          Action:
+          - sts:AssumeRole
+      Path: "/"
+      ManagedPolicyArns:
+      - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+      - PolicyName: OrganizationsReadWritePolicy
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+          - Sid: OrgAccess
+            Effect: Allow
+            Action: "organizations:DescribeOrganization"
+            Resource: "*"
+
+  GetOrganizationIdLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      Handler: "index.handler"
+      Runtime: python3.9
+      FunctionName: !Sub "get-organization-id"
+      Timeout: 300
+      Role: !GetAtt GetOrganizationIdLambdaRole.Arn
+      Code:
+        ZipFile: !Sub |
+          import json
+          import subprocess
+          import sys
+          subprocess.call('pip install requests==2.28.2 -t /tmp/ --no-cache-dir'.split(), stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+          sys.path.insert(1, '/tmp/')
+          import requests
+          import boto3
+          def flatten(d, parent_key=''):
+              items = []
+              for k, v in d.items():
+                  try:
+                      items.extend(flatten(v, '%s%s.' % (parent_key, k)).items())
+                  except AttributeError:
+                      items.append(('%s%s' % (parent_key, k), v))
+              return dict(items)
+          def handler(event, context):
+              print(event)
+              props = event['ResourceProperties']
+              client=boto3.client(props['Service'])
+              event_type = event['RequestType']
+              status = 'SUCCESS'
+              reason = ''
+              data = {}
+              if event_type in ['Create']:
+                  method=getattr(client, 'describe_organization')
+                  kwargs = {}
+                  try:
+                      data=method(**kwargs)
+                      if 'Organization' in data:
+                          data = data['Organization']
+                  except Exception as e:
+                      status = 'FAILED'
+                      reason = str(e)
+              response_data = {
+                  'Status': status,
+                  'Reason': reason,
+                  'PhysicalResourceId': event['LogicalResourceId'],
+                  'StackId': event['StackId'],
+                  'RequestId': event['RequestId'],
+                  'LogicalResourceId': event['LogicalResourceId'],
+                  'Data': flatten(data)
+              }
+              print(response_data)
+              resp = requests.put(event['ResponseURL'], data=json.dumps(response_data))
+              if resp.status_code != 200:
+                  print(resp.text)
+                  raise Exception(resp.text)
+              return
+
+  AwsOrganization:
+    Type: AWS::CloudFormation::CustomResource
+    Properties:
+      Service: organizations
+      ServiceToken: !GetAtt GetOrganizationIdLambda.Arn
+  
+  LoggingAccount:
+    DeletionPolicy: Retain
+    Condition: CreateLoggingAccount
+    Type: AWS::Organizations::Account
+    Properties:
+      AccountName: !Ref LoggingAccountName
+      Email: !Ref LoggingAccountEmail
+
+  SecurityAccount:
+    DeletionPolicy: Retain
+    Condition: CreateSecurityAccount
+    Type: AWS::Organizations::Account
+    Properties:
+      AccountName: !Ref SecurityAccountName
+      Email: !Ref SecurityAccountEmail
+
+  AWSControlTowerAdminRole:
+    Condition: CreateControlTowerAdminIAMRole
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: AWSControlTowerAdmin
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: controltower.amazonaws.com
+            Action: sts:AssumeRole
+      Path: /service-role/
+      ManagedPolicyArns:
+        - !Sub >-
+          arn:${AWS::Partition}:iam::aws:policy/service-role/AWSControlTowerServiceRolePolicy
+
+  AWSControlTowerAdminPolicy:
+    Condition: CreateControlTowerAdminIAMRole
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: AWSControlTowerAdminPolicy
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Action: ec2:DescribeAvailabilityZones
+            Resource: '*'
+      Roles:
+        - !Ref AWSControlTowerAdminRole
+  
+  AWSControlTowerCloudTrailRole:
+    Condition: CreateControlTowerCloudTrailRole
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: AWSControlTowerCloudTrailRole
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: cloudtrail.amazonaws.com
+            Action: sts:AssumeRole
+      Path: /service-role/
+
+  AWSControlTowerCloudTrailRolePolicy:
+    Condition: CreateControlTowerCloudTrailRole
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: AWSControlTowerCloudTrailRolePolicy
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Action:
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+            Resource: !Sub >-
+              arn:${AWS::Partition}:logs:*:*:log-group:aws-controltower/CloudTrailLogs:*
+            Effect: Allow
+      Roles:
+        - !Ref AWSControlTowerCloudTrailRole
+  
+  AWSControlTowerConfigAggregatorRoleForOrganizations:
+    Condition: CreateControlTowerConfigAggregatorRole
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: AWSControlTowerConfigAggregatorRoleForOrganizations
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: config.amazonaws.com
+            Action: sts:AssumeRole
+      Path: /service-role/
+      ManagedPolicyArns:
+        - !Sub arn:${AWS::Partition}:iam::aws:policy/service-role/AWSConfigRoleForOrganizations
+  
+  AWSControlTowerStackSetRole:
+    Condition: CreateControlTowerStackSetRole
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: AWSControlTowerStackSetRole
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: cloudformation.amazonaws.com
+            Action: sts:AssumeRole
+      Path: /service-role/
+
+  AWSControlTowerStackSetRolePolicy:
+    Condition: CreateControlTowerStackSetRole
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: AWSControlTowerStackSetRolePolicy
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Action: sts:AssumeRole
+            Resource: !Sub arn:${AWS::Partition}:iam::*:role/AWSControlTowerExecution
+            Effect: Allow
+      Roles:
+        - !Ref AWSControlTowerStackSetRole
+
+  KmsKey:
+    Type: AWS::KMS::Key
+    Properties:
+      Description: KMS Key used by CloudTrail and Config service to encrypt data in logging bucket
+      EnableKeyRotation: True
+      KeyPolicy:
+        Id: DefaultKmsPolicy
+        Version: 2012-10-17
+        Statement:
+          - Sid: Enable IAM User Permissions
+            Effect: Allow
+            Principal:
+              AWS: !Sub "arn:aws:iam::${AWS::AccountId}:root"
+            Action: "kms:*"
+            Resource: "*"
+          - Sid: Allow Config to use KMS for encryption
+            Effect: Allow
+            Principal:
+              Service: config.amazonaws.com
+            Action:
+              - "kms:Decrypt"
+              - "kms:GenerateDataKey"
+            Resource: !Sub "arn:aws:kms:${AWS::Region}:${AWS::AccountId}:key/*"
+          - Sid: Allow CloudTrail to use KMS for encryption
+            Effect: Allow
+            Principal:
+              Service: cloudtrail.amazonaws.com
+            Action:
+            - "kms:Decrypt"
+            - "kms:GenerateDataKey*"
+            Resource: !Sub "arn:aws:kms:${AWS::Region}:${AWS::AccountId}:key/*"
+            Condition:
+              StringEquals:
+                aws:SourceArn: !Sub "arn:aws:cloudtrail:${AWS::Region}:${AWS::AccountId}:trail/aws-controltower-BaselineCloudTrail"
+              StringLike:
+                kms:EncryptionContext:aws:cloudtrail:arn: !Sub "arn:aws:cloudtrail:*:${AWS::AccountId}:trail/*"
+
+  LandingZone:
+    Type: AWS::ControlTower::LandingZone
+    Properties:
+      Version: !Ref LandingZoneVersion
+      Manifest:
+        governedRegions: !Ref GovernedRegions
+        organizationStructure:
+          security:
+            name: !Ref SecurityOuName
+          sandbox:
+            name: !Ref SandboxOuName
+        centralizedLogging:
+          accountId: !If [ CreateLoggingAccount, !GetAtt LoggingAccount.AccountId, !Ref LoggingAccountId ]
+          configurations:
+            loggingBucket:
+              retentionDays: !Ref LoggingBucketRetentionPeriod
+            accessLoggingBucket:
+              retentionDays: !Ref AccessLoggingBucketRetentionPeriod
+            kmsKeyArn: !GetAtt KmsKey.Arn
+          enabled: true
+        securityRoles:
+          accountId: !If [ CreateSecurityAccount, !GetAtt SecurityAccount.AccountId, !Ref SecurityAccountId ]
+        accessManagement:
+          enabled: true
+
+Outputs:
+  Organization:
+    Description: Organization ID
+    Value: !GetAtt AwsOrganization.Id
+  LogAccountId:
+    Description: AWS Account ID for Centralized Logging Account
+    Value: !If [ CreateLoggingAccount, !GetAtt LoggingAccount.AccountId, !Ref LoggingAccountId ]
+  SecurityAccountId:
+    Description: AWS Account ID for Security Roles Account
+    Value: !If [ CreateSecurityAccount, !GetAtt SecurityAccount.AccountId, !Ref SecurityAccountId ]
